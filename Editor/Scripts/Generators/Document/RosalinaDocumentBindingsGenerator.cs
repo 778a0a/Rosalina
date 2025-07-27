@@ -15,6 +15,7 @@ internal class RosalinaDocumentBindingsGenerator : IRosalinaCodeGeneartor
     private const string DocumentFieldName = "_document";
     private const string RootVisualElementPropertyName = "Root";
     private const string InitializeDocumentMethodName = "InitializeDocument";
+    private const string ReinitializeDocumentMethodName = "ReinitializeDocument";
 
     public RosalinaGenerationResult Generate(UIDocumentAsset document)
     {
@@ -35,6 +36,16 @@ internal class RosalinaDocumentBindingsGenerator : IRosalinaCodeGeneartor
                 Block(initializationStatements)
             );
 
+        StatementSyntax[] reinitializationStatements = RosalinaStatementSyntaxFactory.GenerateReinitializeStatements(document, $"{RootVisualElementPropertyName}?.Q");
+
+        MethodDeclarationSyntax reinitializeMethod = MethodDeclaration(ParseTypeName("void"), ReinitializeDocumentMethodName)
+            .AddModifiers(
+                Token(SyntaxKind.PublicKeyword)
+            )
+            .WithBody(
+                Block(reinitializationStatements)
+            );
+
         ClassDeclarationSyntax @class = ClassDeclaration(document.Name)
             .AddModifiers(Token(SyntaxKind.PublicKeyword))
             .AddModifiers(Token(SyntaxKind.PartialKeyword))
@@ -44,7 +55,8 @@ internal class RosalinaDocumentBindingsGenerator : IRosalinaCodeGeneartor
             .AddMembers(propertyStatements)
             .AddMembers(
                 CreateVisualElementRootProperty(),
-                initializeMethod
+                initializeMethod,
+                reinitializeMethod
             );
 
         string code = CompilationUnit()

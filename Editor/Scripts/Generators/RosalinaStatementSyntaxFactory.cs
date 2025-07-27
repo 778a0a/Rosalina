@@ -91,6 +91,61 @@ internal static class RosalinaStatementSyntaxFactory
         return statements.ToArray();
     }
 
+    public static StatementSyntax[] GenerateReinitializeStatements(UIDocumentAsset document, string methodAccessor)
+    {
+        var statements = new List<StatementSyntax>();
+        IEnumerable<UIProperty> properties = document.GetChildren().Where(x => !x.IsTemplate).Select(x => new UIProperty(x)).ToList();
+
+        foreach (UIProperty uiProperty in properties)
+        {
+            if (uiProperty.Type is null)
+            {
+                continue;
+            }
+
+            ExpressionStatementSyntax statement;
+
+            if (uiProperty.IsCustomComponent)
+            {
+                statement = ExpressionStatement(
+                    InvocationExpression(
+                        MemberAccessExpression(
+                            SyntaxKind.SimpleMemberAccessExpression,
+                            IdentifierName(uiProperty.Name),
+                            IdentifierName("ReinitializeComponent")
+                        )
+                    )
+                    .WithArgumentList(
+                        ArgumentList(
+                            SingletonSeparatedList(
+                                Argument(
+                                    GetQueryElementInvocation(methodAccessor, typeof(VisualElement).Name, uiProperty.OriginalName)
+                                )
+                            )
+                        )
+                    )
+                );
+            }
+            else
+            {
+                statement = ExpressionStatement(
+                    AssignmentExpression(
+                        SyntaxKind.SimpleAssignmentExpression,
+                        IdentifierName(uiProperty.Name),
+                        GetQueryElementInvocation(methodAccessor, uiProperty.Type.Name, uiProperty.OriginalName)
+                    )
+                );
+            }
+
+            if (statement != null)
+            {
+                statements.Add(statement);
+            }
+        }
+
+        return statements.ToArray();
+    }
+
     private static bool CheckForDuplicateProperties(IEnumerable<UIProperty> properties)
     {
         var duplicatePropertyGroups = properties.GroupBy(x => x.Name).Where(g => g.Count() > 1);

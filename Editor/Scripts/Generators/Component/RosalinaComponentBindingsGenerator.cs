@@ -35,7 +35,10 @@ internal sealed class RosalinaComponentBindingsGenerator : IRosalinaCodeGenearto
                     )
                     .AddMembers(propertyStatements)
                     .AddMembers(CreateRootElementProperty())
-                    .AddMembers(CreateConstructor(document.Name, initializationStatements))
+                    .AddMembers(
+                        CreateConstructor(document.Name, initializationStatements),
+                        CreateReinitializeMethod(initializationStatements)
+                    )
             );
 
         string code = compilationUnit
@@ -78,7 +81,37 @@ internal sealed class RosalinaComponentBindingsGenerator : IRosalinaCodeGenearto
             .AddModifiers(Token(SyntaxKind.PublicKeyword))
             .AddAccessorListAccessors(
                 AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
+                    .WithSemicolonToken(Token(SyntaxKind.SemicolonToken)),
+                AccessorDeclaration(SyntaxKind.SetAccessorDeclaration)
+                    .AddModifiers(Token(SyntaxKind.PrivateKeyword))
                     .WithSemicolonToken(Token(SyntaxKind.SemicolonToken))
+            );
+    }
+
+    private static MethodDeclarationSyntax CreateReinitializeMethod(StatementSyntax[] initializationStatements)
+    {
+        return MethodDeclaration(ParseTypeName("void"), "ReinitializeComponent")
+            .WithModifiers(TokenList(Token(SyntaxKind.PublicKeyword)))
+            .WithParameterList(
+                ParameterList(
+                    SingletonSeparatedList<ParameterSyntax>(
+                        Parameter(Identifier("root")).WithType(IdentifierName(typeof(VisualElement).Name))
+                    )
+                )
+            )
+            .WithBody(
+                Block(
+                    new StatementSyntax[]
+                    {
+                        ExpressionStatement(
+                            AssignmentExpression(
+                                SyntaxKind.SimpleAssignmentExpression,
+                                IdentifierName("Root"),
+                                IdentifierName("root")
+                            )
+                        )
+                    }.Concat(initializationStatements)
+                )
             );
     }
 }
